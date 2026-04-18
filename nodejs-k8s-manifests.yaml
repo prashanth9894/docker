@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nodejs-sample-app
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nodejs-sample-app
+  template:
+    metadata:
+      labels:
+        app: nodejs-sample-app
+    spec:
+      containers:
+      - name: nodejs-app
+        # Using a popular, lightweight sample Node.js and Express app
+        image: paulbouwer/hello-kubernetes:1.10.1
+        ports:
+        - containerPort: 8080
+        # Resource requests are required for HPA (Horizontal Pod Autoscaler) to work
+        resources:
+          requests:
+            cpu: 10m
+            memory: 64Mi
+          limits:
+            cpu: 100m
+            memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nodejs-service
+spec:
+  selector:
+    app: nodejs-sample-app
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8080
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: nodejs-app-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: nodejs-sample-app
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 50
